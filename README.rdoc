@@ -1,0 +1,7 @@
+= cloudquery
+
+Description goes here.
+
+== Copyright
+
+Copyright (c) 2009 nb.io. See LICENSE for details.
