@@ -1,14 +1,15 @@
-require 'rubygems'
 require 'rake'
 
 begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "cloudquery"
-    gem.summary = %Q{TODO}
+    gem.summary = "Client for Xoopit's cloudquery API"
     gem.email = "us@nb.io"
     gem.homepage = "http://github.com/nbio/cloudquery"
-    gem.authors = ["nb.io"]
+    gem.description = "Client for Xoopit's cloudquery API"
+    gem.authors = ["Cameron Walters", "nb.io"]
+    gem.files =  FileList["[A-Z]*", "{lib,spec}/**/*"] 
     # gem.rubyforge_project = "cloudquery"
   
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings

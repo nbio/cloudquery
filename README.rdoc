@@ -1,6 +1,6 @@
 = cloudquery
 
-Description goes here.
+Client for Xoopit's cloudquery API
 
 == Copyright
 
