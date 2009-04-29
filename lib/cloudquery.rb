@@ -2,18 +2,26 @@ require "rubygems"
 require "uri"
 require "digest/sha1"
 require "base64"
+require "curl"
 
 class Cloudquery
+  
   KEEP_ALIVE = true
   RAISE_EXCEPTIONS = false
   INSECURE_ENDPOINT = "http://api.xoopit.com/v0/"
   SECURE_ENDPOINT = "https://api.xoopit.com/v0/"
   SIGNING_METHOD = "SHA1"
   
-  attr_accessor :account_name, :secret, :stats
-  attr_reader :endpoint_url, :signing_method
+  COOKIE_JAR = '.cookies.lwp'
   
-  attr_reader :scheme, :host, :port, :path
+  API_PATHS = {
+    :authenticate => 'auth',
+  }.freeze
+  
+  attr_writer :secret
+  attr_reader :account_name, :stats
+  attr_reader :endpoint_url, :scheme, :host, :port, :path
+  attr_reader :signing_method
   
   def initialize(account_name, options={})
     @account_name = account_name
@@ -43,6 +51,19 @@ class Cloudquery
     constructed_url = construct_url(path, query_str)
     append_signature(constructed_url)
   end
+  
+  # Authenticate the account using the password
+  def authenticate(password)
+    raise "Authentication using this method is only allowed over HTTPS" unless secure?
+    
+    params = {
+      'name' => @account_name,
+      'password' => password,
+    }
+    
+    request = ['POST', construct_url(API_PATHS[:authenticate]), params.to_query_string]
+    send_request(request)
+  end
 
 private
   def prepare_endpoint_ivars(options)
@@ -52,7 +73,7 @@ private
     @scheme, @host, @path = e.select(:scheme, :host, :path)
   end
 
-  def construct_url(api_path, query_str)
+  def construct_url(api_path, query_str="")
     uri_class = secure? ? URI::HTTPS : URI::HTTP
     uri = uri_class.build({
       :scheme => @scheme,
@@ -71,9 +92,32 @@ private
     end
 
     signable_url = normalize_url_for_signing(url)
-    signature = signer.sign(secret, signable_url)
+    signature = signer.sign(@secret, signable_url)
     url_safe_signature = URI.escape(signature.tr('+/', '-_'), /=/)
     "#{url}&x_sig=#{url_safe_signature}"
+  end
+  
+  # Expects a rack-style request descriptor
+  # e.g. [HTTP_VERB, url, body]
+  def send_request(descriptor)
+    verb, url, body = descriptor
+    
+    @curl ||= Curl::Easy.new do |c|
+      c.enable_cookies = true
+      c.cookiejar = COOKIE_JAR
+      c.verbose = true
+    end
+    
+    @curl.url = url
+    
+    case verb
+    when 'GET'
+      @curl.http_get
+    when 'POST'
+      puts body
+      @curl.http_post(body)
+    end
+    
   end
   
   def normalize_url_for_signing(url)
@@ -118,6 +162,7 @@ class Time
 end
 
 class Hash
+  
   def to_query_string
     query_str = map { |k, v| URI.escape("#{k}=#{v}") }.join('&')
     URI.escape(query_str, /@/)

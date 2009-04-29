@@ -8,6 +8,8 @@ describe Cloudquery do
   def client
     return @client if defined?(@client)
     @client = Cloudquery.new(*@valid_arguments)
+    @client.stub!(:send_request)
+    @client
   end
   
   it "instantiates when passed valid arguments" do
@@ -35,7 +37,7 @@ describe Cloudquery do
   describe "URL munging" do
     it "merges paths together to create a full URL" do
       path = "path/elements/and/stuff"
-      client.send(:construct_url, path, "").should == "#{client.endpoint_url}#{path}"
+      client.send(:construct_url, path).should == "#{client.endpoint_url}#{path}"
     end
     
     it "merges paths and the query string to create a full URL" do
@@ -99,6 +101,30 @@ describe Cloudquery do
       url = "https://subdomain.domain.tld:9027/path/elements/"
       client.sign_request_url(url, params).should_not match(/@/)
     end
+  end
+  
+  describe "#authenticate" do
+    it "raises an exception unless a password is provided" do
+      lambda { client.authenticate }.should raise_error(ArgumentError)
+      
+    end
     
+    it "raises an exception unless the client is secure" do
+      client.should_receive(:secure?).and_return(false)
+      lambda {
+        client.authenticate('password')
+      }.should raise_error("Authentication using this method is only allowed over HTTPS")
+      
+    end
+    
+    it "sends a request with a descriptor to post params to the authentication url" do
+      params = {'name' => @valid_arguments.first, 'password' => 'password'}
+      client.should_receive(:send_request) do |request_descriptor|
+        request_descriptor.shift.should == 'POST'
+        request_descriptor.shift.should == client.send(:construct_url, Cloudquery::API_PATHS[:authenticate])
+        request_descriptor.shift.should == params.to_query_string
+      end
+      client.authenticate('password')
+    end
   end
 end
