@@ -112,6 +112,9 @@ module Cloudquery
     attr_writer :secret
 
     def initialize(options={})
+      unless options[:account] && options[:secret]
+        raise "Client requires :account => <account name> and :secret => <secret>"
+      end
       @account = options[:account]
       @secret = options[:secret]
       @secure = options[:secure] != false # must pass false for insecure
@@ -139,7 +142,8 @@ module Cloudquery
     end
     
     def send_request(request)
-      execute_request(request.method, request.url, request.headers, request.body)
+      response = execute_request(request.method, request.url, request.headers, request.body)
+      Crack::JSON.parse(response.last)
     end
 
     def execute_request(method, url, headers, body)
@@ -155,7 +159,7 @@ module Cloudquery
         curl.http_post(body)
       end
       
-      [curl.response_code, curl.header_str, Crack::JSON.parse(curl.body_str)]
+      [curl.response_code, curl.header_str, curl.body_str]
     end
   end
 end

@@ -25,12 +25,45 @@ if ENV["TEST_REAL_HTTP"]
   end
 end
 
+describe Cloudquery::Client do
+  before(:each) do
+    @valid_options = {
+      :account => 'account',
+      :secret => 'secret'
+    }
+  end
+  
+  def client(options={})
+    return @client if defined?(@client)
+    @client = Cloudquery::Client.new(@valid_options.merge(options))
+    @client.stub!(:execute_request)
+    @client
+  end
+  
+  it "instantiates when passed valid arguments" do
+    lambda { client }.should_not raise_error
+  end
+  
+  it "raises an error when not instantiated with an account" do
+    lambda {
+      client(:account => nil)
+    }.should raise_error("Client requires :account => <account name> and :secret => <secret>")
+  end
+  
+  it "raises an error when not instantiated with an secret" do
+    lambda {
+      client(:secret => nil)
+    }.should raise_error("Client requires :account => <account name> and :secret => <secret>")
+  end
+  
+end
+
 describe Cloudquery::Request do
   before(:each) do
     @valid_options = {
       :scheme => 'http',
       :host => 'example.com',
-      :path => '/v0/',
+      :path => '/super/duper/path',
     }
   end
   
