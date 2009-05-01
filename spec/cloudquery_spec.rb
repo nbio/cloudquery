@@ -12,13 +12,28 @@ if ENV["TEST_REAL_HTTP"]
     end
 
     it "gets your account information from the server" do
-      account = @client.get_account["result"]
+      response = @client.get_account
+      response['STATUS'].should == 200
+      
+      account = response["result"]
       account["secret"].should == @config[:secret]
 
       account.should have_key("name")
       account["name"].should == @config[:account]
 
       account.should have_key("preferences")
+    end
+    
+    it "updates your account on the server" do
+      account = @client.get_account["result"]
+      response = @client.update_account(account)
+      response['STATUS'].should == 200
+    end
+    
+    it "adds a schema to the server" do
+      response = @client.add_schema(File.open('spec/example_schema.xml'))
+      p response
+      response['STATUS'].should be_between(200, 201)
     end
   end
 end

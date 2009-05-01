@@ -1,0 +1,40 @@
+<schema name="spec.example" store="yes">
+    <!-- The full name of the contact -->
+    <field name="name"
+           type="string"
+           index="tokenized"
+           analyzer="LCWhitespaceAnalyzer"
+           usage="user" />
+    <!-- The email addresses. A json map of type to address -->
+    <field name="email"
+           type="object"
+           index="tokenized"
+           tokenizer="JsonObjectTokenizer"
+           filters="JsonObjectFilter(*=-:EmailAddressFilter)"
+           search-analyzer="LCWhitespaceAnalyzer"
+           usage="user" />
+    <!-- The phone numbers. A json map of type to phone number -->
+    <field name="telephone"
+           type="object"
+           index="tokenized"
+           tokenizer="JsonObjectTokenizer"
+           filters="JsonObjectFilter(*=-:+)"
+           search-analyzer="KeywordAnalyzer" />
+    <!-- The addresses. A json map of type address -->
+    <field name="address"
+           type="object"
+           index="tokenized"
+           tokenizer="JsonObjectTokenizer"
+           filters="JsonObjectFilter(*=-:TextAnalyzer)"
+           search-analyzer="TextAnalyzer"
+           usage="user" />
+    <!-- The birthday of the contact-->
+    <field name="birthday"
+           type="date" />
+    <!-- A note for the contact-->
+    <field name="note"
+           type="string"
+           index="tokenized"
+           analyzer="TextAnalyzer"
+           usage="user" />
+</schema>

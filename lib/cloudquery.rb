@@ -12,19 +12,27 @@ module Cloudquery
   PATH = "/v0".freeze
 
   API_PATHS = {
-    :account => "account",
+    :account => "account".freeze,
+    :schema => "schema".freeze,
   }.freeze
+  
+  # standard Content-Types for requests
+  CONTENT_TYPES = {
+    :json => 'application/json;charset=utf-8'.freeze,
+    :form => 'application/x-www-form-urlencoded'.freeze,
+    :xml  => 'application/xml;charset=utf-8'.freeze,
+  }.freeze
+  
 
-
-  SIGNING_METHOD = "SHA1"
-  COOKIE_JAR = ".cookies.lwp"
+  SIGNING_METHOD = "SHA1".freeze
+  COOKIE_JAR = ".cookies.lwp".freeze
 
   class Request
     attr_accessor :method, :headers, :scheme, :host, :port, :path, :params, :body
 
     def initialize(options={})
       @method = options[:method] || 'POST'
-      @headers = options[:headers] || []
+      @headers = options[:headers] || {}
       @scheme = options[:scheme] || SCHEME
       @host = options[:host] || HOST
       @port = options[:port] || (@scheme == 'https' ? URI::HTTPS::DEFAULT_PORT : URI::HTTP::DEFAULT_PORT)
@@ -121,11 +129,25 @@ module Cloudquery
       @secure = options[:secure] != false # must pass false for insecure
     end
 
-    def get_account
-      request = build_request(:method => 'GET', :path => build_path(API_PATHS[:account], @account))
-      send_request(request)
-    end
+    # Account Management
 
+    def get_account
+      send_request get(build_path(API_PATHS[:account], @account))
+    end
+    
+    def update_account(account_doc={})
+      send_request put(build_path(API_PATHS[:account], @account), JSON.generate(account_doc))
+    end
+    
+    def delete_account
+      send_request delete(build_path(API_PATHS[:account], @account))
+    end
+    
+    def add_schema(xml)
+      body = xml.instance_of?(File) ? xml.read : xml
+      send_request(post(build_path(API_PATHS[:schema]), body), CONTENT_TYPES[:xml])
+    end
+    
     private
     def build_path(*path_elements)
       path_elements.flatten.unshift(PATH).join('/')
@@ -133,6 +155,22 @@ module Cloudquery
     
     def build_request(options={})
       Request.new default_request_params.merge(options)
+    end
+    
+    def get(path, params={})
+      build_request(:method => 'GET', :path => path, :params => params)
+    end
+    
+    def delete(path, params={})
+      build_request(:method => 'DELETE', :path => path, :params => params)
+    end
+    
+    def post(path, doc, params={})
+      build_request(:method => 'POST', :path => path, :body => doc, :params => params)
+    end
+    
+    def put(path, doc, params={})
+      build_request(:method => 'PUT', :path => path, :body => doc, :params => params)
     end
     
     def default_request_params
@@ -143,21 +181,27 @@ module Cloudquery
       }
     end
     
-    def send_request(request)
-      response = execute_request(request.method, request.url, request.headers, request.body)
-      JSON.parse(response.last)
+    def send_request(request, content_type=nil)
+      response = execute_request(request.method, request.url, request.headers, request.body, content_type)
+      result = JSON.parse(response.last)
+      result.merge({'STATUS' => response.first})
     end
 
-    def execute_request(method, url, headers, body)
+    def execute_request(method, url, headers, body, content_type=nil)
+      content_type ||= CONTENT_TYPES[:json]
       curl = Curl::Easy.new(url) do |c|
         c.verbose = true
         c.headers = headers
+        c.headers['Content-Type'] = content_type
       end
       
       case method
       when 'GET'
         curl.http_get
+      when 'DELETE'
+        curl.http_delete
       when 'POST'
+        p curl.headers
         curl.http_post(body)
       when 'PUT'
         curl.http_put(body)
