@@ -2,8 +2,8 @@ require 'spec_helper'
 
 if ENV["TEST_REAL_HTTP"]
   # Create a config.yml file containing the following:
-  # :account: <account name>
-  # :secret: <secret>
+  # :account: <your account name>
+  # :secret: <your secret>
   # then run the specs with TEST_REAL_HTTP=true
   describe "CloudQuery account" do
     before(:each) do
@@ -13,7 +13,7 @@ if ENV["TEST_REAL_HTTP"]
 
     it "gets your account information from the server" do
       response = @client.get_account
-      response['STATUS'].should == 200
+      response['STATUS'].should be_between(200, 299)
       
       account = response["result"]
       account["secret"].should == @config[:secret]
@@ -27,13 +27,17 @@ if ENV["TEST_REAL_HTTP"]
     it "updates your account on the server" do
       account = @client.get_account["result"]
       response = @client.update_account(account)
-      response['STATUS'].should == 200
+      response['STATUS'].should be_between(200, 299)
     end
     
     it "adds a schema to the server" do
       response = @client.add_schema(File.open('spec/example_schema.xml'))
-      p response
-      response['STATUS'].should be_between(200, 201)
+      response['STATUS'].should be_between(200, 299)
+    end
+    
+    it "deletes a schema from the server" do
+      response = @client.delete_schema("spec.example")
+      response['STATUS'].should be_between(200, 299)
     end
   end
 end

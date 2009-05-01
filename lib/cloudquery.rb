@@ -152,6 +152,13 @@ module Cloudquery
       send_request(post(build_path(API_PATHS[:schema]), body), CONTENT_TYPES[:xml])
     end
     
+    def delete_schema(schema_name)
+      send_request delete(build_path(
+        API_PATHS[:schema],
+        Rack::Utils.escape("xfs.schema.name:\"#{schema_name}\"")
+      ))
+    end
+    
     private
     def build_path(*path_elements)
       path_elements.flatten.unshift(PATH).join('/')
