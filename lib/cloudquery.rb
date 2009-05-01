@@ -4,7 +4,7 @@ require "digest/sha1"
 require "base64"
 require "rack/utils"
 require "curl"
-require "crack"
+require "json"
 
 module Cloudquery
   SCHEME = "https".freeze
@@ -27,7 +27,7 @@ module Cloudquery
       @headers = options[:headers] || []
       @scheme = options[:scheme] || SCHEME
       @host = options[:host] || HOST
-      @port = options[:port] || URI::HTTPS::DEFAULT_PORT
+      @port = options[:port] || (@scheme == 'https' ? URI::HTTPS::DEFAULT_PORT : URI::HTTP::DEFAULT_PORT)
       @path = options[:path] || PATH
       @params = options[:params] || {}
       @body = options[:body]
@@ -53,7 +53,7 @@ module Cloudquery
 
     private
     def append_signature(uri, secret)
-      sig = Crypto::Sha1.sign(secret, uri)
+      sig = Crypto::URLSafeSHA1.sign(secret, uri)
       x_sig = Rack::Utils.build_query("x_sig" => sig)
       "#{uri}&#{x_sig}"
     end
@@ -73,11 +73,7 @@ module Cloudquery
     end
 
     def base_uri
-      uri_class = if @scheme == 'https'
-        URI::HTTPS
-      else
-        URI::HTTP
-      end
+      uri_class = (@scheme == 'https' ? URI::HTTPS : URI::HTTP)
       uri_class.build(:scheme => @scheme, :host => @host, :port => @port)
     end
 
@@ -100,7 +96,7 @@ module Cloudquery
 
     end
 
-    module Sha1
+    module URLSafeSHA1
       extend self
 
       def sign(*tokens)
@@ -126,7 +122,8 @@ module Cloudquery
     end
 
     def get_account
-      send_request build_request(:method => 'GET', :path => build_path(API_PATHS[:account], @account))
+      request = build_request(:method => 'GET', :path => build_path(API_PATHS[:account], @account))
+      send_request(request)
     end
 
     private
@@ -148,7 +145,7 @@ module Cloudquery
     
     def send_request(request)
       response = execute_request(request.method, request.url, request.headers, request.body)
-      Crack::JSON.parse(response.last)
+      JSON.parse(response.last)
     end
 
     def execute_request(method, url, headers, body)
@@ -162,6 +159,8 @@ module Cloudquery
         curl.http_get
       when 'POST'
         curl.http_post(body)
+      when 'PUT'
+        curl.http_put(body)
       end
       
       [curl.response_code, curl.header_str, curl.body_str]

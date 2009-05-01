@@ -12,15 +12,13 @@ if ENV["TEST_REAL_HTTP"]
     end
 
     it "gets your account information from the server" do
-      response_hash = @client.get_account.last
-      response_hash.should have_key("result")
-      response_hash["result"].should have_key("secret")
-      response_hash["result"]["secret"].should == @config[:secret]
+      account = @client.get_account["result"]
+      account["secret"].should == @config[:secret]
 
-      response_hash["result"].should have_key("name")
-      response_hash["result"]["name"].should == @config[:account]
+      account.should have_key("name")
+      account["name"].should == @config[:account]
 
-      response_hash["result"].should have_key("preferences")
+      account.should have_key("preferences")
     end
   end
 end
@@ -91,24 +89,73 @@ describe Cloudquery::Request do
     end
     
     describe "with an account" do
-      it "should append the signature params" do
+      it "should append the signature_params" do
         params = request(:account => 'account').request_uri.sub(/^[^?]+\?/, '').split('&')
         params.select { |n| n.match(/^x_/) }.should have(4).items
       end
       
-      it "should append the signature when the secret is provided" do
-        params = request(:account => 'account', :secret => 'secret').request_uri.sub(/^[^?]+\?/, '').split('&')
-        x_params = params.select { |n| n.match(/^x_/) }
-        x_params.should have(5).items
-        x_params.last.should match(/^x_sig=[0-9a-zA-Z-._%]+/)
+      describe "and a secret" do
+        it "should append the signature when the secret is provided" do
+          params = request(:account => 'account', :secret => 'secret').request_uri.sub(/^[^?]+\?/, '').split('&')
+          x_params = params.select { |n| n.match(/^x_/) }
+          x_params.should have(5).items
+          x_params.last.should match(/^x_sig=[0-9a-zA-Z\-._%]+/)
+        end
       end
     end
   end
   
   describe "url" do
+    it "constructs a full URL from the scheme, host, and request_uri" do
+      request.url.should == 
+        "#{request.scheme}://#{request.host}#{request.request_uri}"
+    end
     
-  end
+    it "constructs a url using a port override" do
+      request(:port => 8080).url.should == 
+        "#{request.scheme}://#{request.host}:8080#{request.request_uri}"
+    end
+    
+    it "constructs a url using a path override" do
+      request(:path => '/another/path').url.should == 
+        "#{request.scheme}://#{request.host}#{request.request_uri}"
+    end
+    
+    it "constructs a url with default query parameters" do
+      request(:params => {'these' => 'params'}).url.should ==
+        "#{request.scheme}://#{request.host}#{request.request_uri}"
+      request.url.should match(/these=params$/)
+    end
 
+    describe "without an account or secret" do
+      it "does not append the x_<params>" do
+        request.url.should_not match(/x_/)
+      end
+    end
+    
+    describe "with an account" do
+      it "appends the signature params" do
+        url = request(:account => 'account').url
+        query = Rack::Utils.parse_query(url.split('?').last)
+        request.send(:signature_params).keys.each do |param_name|
+          query.should have_key(param_name)
+        end
+      end
+
+      describe "and a secret" do
+        it "appends the signature params and x_sig with the signature" do
+          url = request(:account => 'account', :secret => 'secret').url
+          query = Rack::Utils.parse_query(url.split('?').last)
+          signature_params = request.send(:signature_params).keys
+          signature_params.each do |param_name|
+            query.should have_key(param_name)
+          end
+          query.should have_key('x_sig')
+        end
+      end
+    end
+  end
+  
   describe "private methods" do
     
     describe "append_signature" do
@@ -194,18 +241,18 @@ describe Cloudquery::Crypto::Random do
   end
 end
 
-describe Cloudquery::Crypto::Sha1 do
+describe Cloudquery::Crypto::URLSafeSHA1 do
   describe "sign" do
     it "takes an arbitrary number of tokens to encrypt" do
-      lambda { Cloudquery::Crypto::Sha1.sign }.should_not raise_error
-      lambda { Cloudquery::Crypto::Sha1.sign('a') }.should_not raise_error
-      lambda { Cloudquery::Crypto::Sha1.sign('a', 'b', 'c') }.should_not raise_error
+      lambda { Cloudquery::Crypto::URLSafeSHA1.sign }.should_not raise_error
+      lambda { Cloudquery::Crypto::URLSafeSHA1.sign('a') }.should_not raise_error
+      lambda { Cloudquery::Crypto::URLSafeSHA1.sign('a', 'b', 'c') }.should_not raise_error
     end
     
     it "produces a url-safe base64 encoded SHA1 digest of tokens" do
       20.times do
         token = Cloudquery::Crypto::Random.nonce
-        signature = Cloudquery::Crypto::Sha1.sign(token)
+        signature = Cloudquery::Crypto::URLSafeSHA1.sign(token)
         signature.should_not include('+')
         signature.should_not include('/')
 
