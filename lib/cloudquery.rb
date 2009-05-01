@@ -38,6 +38,10 @@ module Cloudquery
       @port = options[:port] || (@scheme == 'https' ? URI::HTTPS::DEFAULT_PORT : URI::HTTP::DEFAULT_PORT)
       @path = options[:path] || PATH
       @params = options[:params] || {}
+      if ['PUT', 'DELETE'].include?(@method)
+        @params['_method'] = @method
+        @method = 'POST'
+      end
       @body = options[:body]
       
       @account = options[:account]
