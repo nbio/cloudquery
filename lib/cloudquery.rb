@@ -37,7 +37,12 @@ module Cloudquery
     end
 
     def request_uri(account=@account, secret=@secret)
-      uri = "#{@path}?#{query_str(signature_params(account))}"
+      query = query_str(signature_params(account))
+      uri = if query.empty?
+        @path.dup
+      else
+        "#{@path}?#{query}"
+      end
       uri = append_signature(uri, secret) if secret
       uri
     end
@@ -49,7 +54,7 @@ module Cloudquery
     private
     def append_signature(uri, secret)
       sig = Crypto::Sha1.sign(secret, uri)
-      x_sig = Rack::Utils.build_query("x_sig" => sig.tr('+/', '-_'))
+      x_sig = Rack::Utils.build_query("x_sig" => sig)
       "#{uri}&#{x_sig}"
     end
 
@@ -58,7 +63,7 @@ module Cloudquery
       {
         'x_name' => account,
         'x_time' => Time.now.to_i_with_milliseconds,
-        'x_nonce' => Cloudquery::Crypto::Random.number,
+        'x_nonce' => Cloudquery::Crypto::Random.nonce,
         'x_method' => SIGNING_METHOD,
       }
     end
@@ -84,11 +89,11 @@ module Cloudquery
 
       SecureRandom = (defined?(::SecureRandom) && ::SecureRandom) || (defined?(::ActiveSupport::SecureRandom) && ::ActiveSupport::SecureRandom)
       if SecureRandom
-        def number
+        def nonce
           "#{SecureRandom.random_number}.#{Time.now.to_i}"[2..-1]
         end
       else
-        def number
+        def nonce
           "#{rand.to_s}.#{Time.now.to_i}"[2..-1]
         end
       end
@@ -101,7 +106,7 @@ module Cloudquery
       def sign(*tokens)
         tokens = tokens.flatten
         digest = Digest::SHA1.digest(tokens.join)
-        Base64.encode64(digest).chomp
+        Base64.encode64(digest).chomp.tr('+/', '-_')
       end
 
     end
@@ -112,9 +117,9 @@ module Cloudquery
     attr_writer :secret
 
     def initialize(options={})
-      unless options[:account] && options[:secret]
-        raise "Client requires :account => <account name> and :secret => <secret>"
-      end
+      # unless options[:account] && options[:secret]
+      #   raise "Client requires :account => <account name> and :secret => <secret>"
+      # end
       @account = options[:account]
       @secret = options[:secret]
       @secure = options[:secure] != false # must pass false for insecure
