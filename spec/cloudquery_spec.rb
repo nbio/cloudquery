@@ -30,14 +30,20 @@ if ENV["TEST_REAL_HTTP"]
       response['STATUS'].should be_between(200, 299)
     end
     
-    it "adds a schema to the server" do
+    it "adds a schema to your account on the server" do
       response = @client.add_schema(File.open('spec/example_schema.xml'))
       response['STATUS'].should be_between(200, 299)
     end
     
-    it "deletes a schema from the server" do
+    it "deletes a schema from your account on the server" do
       response = @client.delete_schema("spec.example")
       response['STATUS'].should be_between(200, 299)
+    end
+    
+    it "gets the schemas for your accoutn from the server" do
+      response = @client.get_schemas
+      response['STATUS'].should be_between(200, 299)
+      response['result'].should be_an_instance_of(Array)
     end
   end
 end

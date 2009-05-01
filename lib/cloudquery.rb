@@ -140,7 +140,8 @@ module Cloudquery
     end
     
     def update_account(account_doc={})
-      send_request put(build_path(API_PATHS[:account], @account), JSON.generate(account_doc))
+      body = JSON.generate(account_doc)
+      send_request put(build_path(API_PATHS[:account], @account), body)
     end
     
     def delete_account
@@ -149,7 +150,8 @@ module Cloudquery
     
     def add_schema(xml)
       body = xml.instance_of?(File) ? xml.read : xml
-      send_request(post(build_path(API_PATHS[:schema]), body), CONTENT_TYPES[:xml])
+      request = post(build_path(API_PATHS[:schema]), body)
+      send_request(request, CONTENT_TYPES[:xml])
     end
     
     def delete_schema(schema_name)
@@ -157,6 +159,10 @@ module Cloudquery
         API_PATHS[:schema],
         Rack::Utils.escape("xfs.schema.name:\"#{schema_name}\"")
       ))
+    end
+    
+    def get_schemas
+      send_request get(build_path(API_PATHS[:schema]))
     end
     
     private
