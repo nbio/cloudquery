@@ -83,13 +83,8 @@ if ENV["TEST_REAL_HTTP"]
     end
 
     describe "document management" do
-      before(:each) do
-        @client.add_indexes('spec_index')
-        @client.add_schema(File.open('spec/example_schema.xml'))
-      end
-
-      it "adds a document to an index on the server" do
-        document = {
+      def valid_document
+        {
             'spec.example.name' => 'Steve Rogers',
             'spec.example.email' => ['steve.rogers@example.com','captain.america@marvel.com'],
             'spec.example.telephone' => ['555-555-5555','123-456-6789'],
@@ -97,21 +92,27 @@ if ENV["TEST_REAL_HTTP"]
             'spec.example.birthday' => ParseDate.parsedate('July 4, 1917'),
             'spec.example.note' => 'Captain America!',
         }
-        response = @client.add_documents('spec_index', document, 'spec.example')
+      end
+      
+      before(:each) do
+        @client.add_indexes('spec_index')
+        @client.add_schema(File.open('spec/example_schema.xml'))
+      end
+
+      after(:each) do
+        @client.delete_schema("spec.example")
+        @client.delete_indexes('spec_index')
+      end
+
+      it "adds a document to an index on the server" do
+        response = @client.add_documents('spec_index', valid_document, 'spec.example')
         response['STATUS'].should be_between(200, 299)
         response['result'].should have(1).item
       end
 
       it "adds multiple documents to an index on the server" do
         documents = [
-          {
-            'spec.example.name' => 'Steve Rogers',
-            'spec.example.email' => ['steve.rogers@example.com','captain.america@marvel.com'],
-            'spec.example.telephone' => ['555-555-5555', '123-456-6789'],
-            'spec.example.address' => ['Lower East Side, NY NY'],
-            'spec.example.birthday' => ParseDate.parsedate('July 4, 1917'),
-            'spec.example.note' => 'Captain America!',
-          },
+          valid_document,
           {
             'spec.example.name' => 'Clark Kent',
             'spec.example.email' => ['clark.kent@example.com','superman@dc.com'],
@@ -139,10 +140,23 @@ if ENV["TEST_REAL_HTTP"]
         response['result'].should have(3).items
       end
 
-      after(:each) do
-        @client.delete_schema("spec.example")
-        @client.delete_indexes('spec_index')
+      it "updates a document on the server" do
+        doc_id = 'spec_example_document'
+        doc = valid_document
+
+        added_doc = @client.add_documents('spec_index', doc, 'spec.example')
+        added_doc['STATUS'].should == 201 # created
+        added_doc['result'].should have(1).item
+        x_doc_id = added_doc['result'].first
+
+        doc['#.#'] = x_doc_id
+        doc['spec.example.note'] = "Document modified!"
+
+        response = @client.update_documents('spec_index', doc, 'spec.example')
+        response['STATUS'].should == 200 # OK
+        response['result'].should have(1).item
       end
+
     end
   end
 end
@@ -165,19 +179,7 @@ describe Cloudquery::Client do
   it "instantiates when passed valid arguments" do
     lambda { client }.should_not raise_error
   end
-  
-  xit "raises an error when not instantiated with an account" do
-    lambda {
-      client(:account => nil)
-    }.should raise_error("Client requires :account => <account name> and :secret => <secret>")
-  end
-  
-  xit "raises an error when not instantiated with a secret" do
-    lambda {
-      client(:secret => nil)
-    }.should raise_error("Client requires :account => <account name> and :secret => <secret>")
-  end
-  
+    
 end
 
 describe Cloudquery::Request do

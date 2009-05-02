@@ -192,15 +192,23 @@ module Cloudquery
     # Document management
     
     def add_documents(index, docs, *schemas)
-      docs = [docs] if docs.is_a?(Hash)
-      if @document_id_method
-        docs.each { |d| d.send(@document_id_method) }
-      end
       request = post(
         build_path(API_PATHS[:documents], index, url_pipe_join(schemas)),
-        JSON.generate(docs)
+        JSON.generate(identify_documents(docs))
       )
       send_request request
+    end
+    
+    def update_documents(index, docs, *schemas)
+      request = put(
+        build_path(API_PATHS[:documents], index, url_pipe_join(schemas)),
+        JSON.generate(identify_documents(docs))
+      )
+      send_request request
+    end
+    
+    def modify_documents(index, query, data, *schemas)
+      
     end
     
     private
@@ -249,11 +257,10 @@ module Cloudquery
     def execute_request(method, url, headers, body, content_type=nil)
       content_type ||= CONTENT_TYPES[:json]
       curl = Curl::Easy.new(url) do |c|
-        c.verbose = true
+        # c.verbose = true
         c.headers = headers
         c.headers['Content-Type'] = content_type
       end
-      
       case method
       when 'GET'
         curl.http_get
@@ -275,6 +282,14 @@ module Cloudquery
       else
         Rack::Utils.escape(arr.join('|'))
       end
+    end
+    
+    def identify_documents(docs)
+      [docs] if docs.is_a?(Hash)
+      if @document_id_method
+        docs.each { |d| d.send(@document_id_method) }
+      end
+      docs
     end
   end
 end
