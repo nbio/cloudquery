@@ -2,39 +2,25 @@
     <!-- The full name of the contact -->
     <field name="name"
            type="string"
-           index="tokenized"
            analyzer="LCWhitespaceAnalyzer"
            usage="user" />
-    <!-- The email addresses. A json map of type to address -->
+    <!-- The email addresses. A json array: email address -->
     <field name="email"
-           type="object"
-           index="tokenized"
-           tokenizer="JsonObjectTokenizer"
-           filters="JsonObjectFilter(*=-:EmailAddressFilter)"
-           search-analyzer="LCWhitespaceAnalyzer"
+           type="string"
            usage="user" />
-    <!-- The phone numbers. A json map of type to phone number -->
+    <!-- The phone numbers. A json array: phone number -->
     <field name="telephone"
-           type="object"
-           index="tokenized"
-           tokenizer="JsonObjectTokenizer"
-           filters="JsonObjectFilter(*=-:+)"
-           search-analyzer="KeywordAnalyzer" />
-    <!-- The addresses. A json map of type address -->
+           type="string"
+           usage="user" />
+    <!-- The addresses. A json array: address -->
     <field name="address"
-           type="object"
-           index="tokenized"
-           tokenizer="JsonObjectTokenizer"
-           filters="JsonObjectFilter(*=-:TextAnalyzer)"
-           search-analyzer="TextAnalyzer"
+           type="string"
            usage="user" />
     <!-- The birthday of the contact-->
     <field name="birthday"
            type="date" />
     <!-- A note for the contact-->
     <field name="note"
-           type="string"
-           index="tokenized"
-           analyzer="TextAnalyzer"
+           type="text"
            usage="user" />
 </schema>
