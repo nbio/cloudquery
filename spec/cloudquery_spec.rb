@@ -23,27 +23,63 @@ if ENV["TEST_REAL_HTTP"]
 
       account.should have_key("preferences")
     end
-    
+
     it "updates your account on the server" do
       account = @client.get_account["result"]
       response = @client.update_account(account)
       response['STATUS'].should be_between(200, 299)
     end
-    
+
     it "adds a schema to your account on the server" do
       response = @client.add_schema(File.open('spec/example_schema.xml'))
       response['STATUS'].should be_between(200, 299)
     end
-    
+
+    it "gets the schemas for your account from the server" do
+      response = @client.get_schemas
+      response['STATUS'].should be_between(200, 299)
+      response['result'].should be_an_instance_of(Array)
+      response['result'].should have_at_least(1).item
+    end
+
     it "deletes a schema from your account on the server" do
       response = @client.delete_schema("spec.example")
       response['STATUS'].should be_between(200, 299)
     end
-    
-    it "gets the schemas for your accoutn from the server" do
-      response = @client.get_schemas
+
+    it "adds a single index to your account on the server" do
+      response = @client.add_indexes('spec_index')
       response['STATUS'].should be_between(200, 299)
       response['result'].should be_an_instance_of(Array)
+      response['result'].should have(1).item
+    end
+
+    it "adds multiple indexes to your account on the server" do
+      response = @client.add_indexes %w( spec_index_1 spec_index_2 spec_index_3 )
+      response['STATUS'].should be_between(200, 299)
+      response['result'].should be_an_instance_of(Array)
+      response['result'].should have(3).items
+    end
+
+    it "gets the indexes for your account from the server" do
+      response = @client.get_indexes
+      response['STATUS'].should be_between(200, 299)
+      response['result'].should be_an_instance_of(Array)
+      response['result'].should have_at_least(4).items
+    end
+
+    it "deletes a single index from your account on the server" do
+      response = @client.delete_indexes('spec_index')
+      response['STATUS'].should be_between(200, 299)
+      response['result'].should be_an_instance_of(Array)
+      response['result'].should have(1).item
+    end
+
+    it "deletes multiple indexes from your account on the server" do
+      response = @client.delete_indexes %w( spec_index_1 spec_index_2 spec_index_3 )
+      response['STATUS'].should be_between(200, 299)
+      response['result'].should be_an_instance_of(Array)
+      response['result'].should have(3).items
     end
   end
 end

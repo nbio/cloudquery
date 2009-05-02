@@ -14,6 +14,7 @@ module Cloudquery
   API_PATHS = {
     :account => "account".freeze,
     :schema => "schema".freeze,
+    :indexes => "i".freeze,
   }.freeze
   
   # standard Content-Types for requests
@@ -165,6 +166,20 @@ module Cloudquery
       send_request get(build_path(API_PATHS[:schema]))
     end
     
+    def add_indexes(*indexes)
+      body = JSON.generate(indexes.flatten)
+      send_request post(build_path(API_PATHS[:indexes]), body)
+    end
+    
+    def delete_indexes(*indexes)
+      indexes = url_pipe_join(indexes)
+      send_request delete(build_path(API_PATHS[:indexes], indexes))
+    end
+    
+    def get_indexes
+      send_request get(build_path(API_PATHS[:indexes]))
+    end
+    
     private
     def build_path(*path_elements)
       path_elements.flatten.unshift(PATH).join('/')
@@ -200,8 +215,12 @@ module Cloudquery
     
     def send_request(request, content_type=nil)
       response = execute_request(request.method, request.url, request.headers, request.body, content_type)
-      result = JSON.parse(response.last)
-      result.merge({'STATUS' => response.first})
+      begin
+        result = JSON.parse(response.last)
+      rescue JSON::ParserError => e
+        result = {"REASON" => response.last}
+      end
+      result.merge!({'STATUS' => response.first})
     end
 
     def execute_request(method, url, headers, body, content_type=nil)
@@ -218,13 +237,16 @@ module Cloudquery
       when 'DELETE'
         curl.http_delete
       when 'POST'
-        p curl.headers
         curl.http_post(body)
       when 'PUT'
         curl.http_put(body)
       end
       
       [curl.response_code, curl.header_str, curl.body_str]
+    end
+
+    def url_pipe_join(arr)
+      Rack::Utils.escape(Array(arr).flatten.join('|'))
     end
   end
 end
