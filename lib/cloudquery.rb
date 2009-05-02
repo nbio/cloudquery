@@ -15,6 +15,7 @@ module Cloudquery
     :account => "account".freeze,
     :schema => "schema".freeze,
     :indexes => "i".freeze,
+    :documents => "i".freeze,
   }.freeze
   
   # standard Content-Types for requests
@@ -129,12 +130,16 @@ module Cloudquery
       # unless options[:account] && options[:secret]
       #   raise "Client requires :account => <account name> and :secret => <secret>"
       # end
+      
       @account = options[:account]
       @secret = options[:secret]
+      
       @secure = options[:secure] != false # must pass false for insecure
+      
+      @document_id_method = nil
     end
 
-    # Account Management
+    # Account management
 
     def get_account
       send_request get(build_path(API_PATHS[:account], @account))
@@ -148,6 +153,8 @@ module Cloudquery
     def delete_account
       send_request delete(build_path(API_PATHS[:account], @account))
     end
+    
+    # Schema management
     
     def add_schema(xml)
       body = xml.instance_of?(File) ? xml.read : xml
@@ -166,6 +173,8 @@ module Cloudquery
       send_request get(build_path(API_PATHS[:schema]))
     end
     
+    # Index management
+    
     def add_indexes(*indexes)
       body = JSON.generate(indexes.flatten)
       send_request post(build_path(API_PATHS[:indexes]), body)
@@ -178,6 +187,20 @@ module Cloudquery
     
     def get_indexes
       send_request get(build_path(API_PATHS[:indexes]))
+    end
+    
+    # Document management
+    
+    def add_documents(index, docs, *schemas)
+      docs = [docs] if docs.is_a?(Hash)
+      if @document_id_method
+        docs.each { |d| d.send(@document_id_method) }
+      end
+      request = post(
+        build_path(API_PATHS[:documents], index, url_pipe_join(schemas)),
+        JSON.generate(docs)
+      )
+      send_request request
     end
     
     private
@@ -245,8 +268,13 @@ module Cloudquery
       [curl.response_code, curl.header_str, curl.body_str]
     end
 
-    def url_pipe_join(arr)
-      Rack::Utils.escape(Array(arr).flatten.join('|'))
+    def url_pipe_join(arr, default_value='*')
+      arr = Array(arr).flatten
+      if arr.empty?
+        default_value
+      else
+        Rack::Utils.escape(arr.join('|'))
+      end
     end
   end
 end

@@ -81,6 +81,69 @@ if ENV["TEST_REAL_HTTP"]
       response['result'].should be_an_instance_of(Array)
       response['result'].should have(3).items
     end
+
+    describe "document management" do
+      before(:each) do
+        @client.add_indexes('spec_index')
+        @client.add_schema(File.open('spec/example_schema.xml'))
+      end
+
+      it "adds a document to an index on the server" do
+        document = {
+            'spec.example.name' => 'Steve Rogers',
+            'spec.example.email' => ['steve.rogers@example.com','captain.america@marvel.com'],
+            'spec.example.telephone' => ['555-555-5555','123-456-6789'],
+            'spec.example.address' => ['Lower East Side, NY NY'],
+            'spec.example.birthday' => ParseDate.parsedate('July 4, 1917'),
+            'spec.example.note' => 'Captain America!',
+        }
+        response = @client.add_documents('spec_index', document, 'spec.example')
+        response['STATUS'].should be_between(200, 299)
+        response['result'].should have(1).item
+      end
+
+      it "adds multiple documents to an index on the server" do
+        documents = [
+          {
+            'spec.example.name' => 'Steve Rogers',
+            'spec.example.email' => ['steve.rogers@example.com','captain.america@marvel.com'],
+            'spec.example.telephone' => ['555-555-5555', '123-456-6789'],
+            'spec.example.address' => ['Lower East Side, NY NY'],
+            'spec.example.birthday' => ParseDate.parsedate('July 4, 1917'),
+            'spec.example.note' => 'Captain America!',
+          },
+          {
+            'spec.example.name' => 'Clark Kent',
+            'spec.example.email' => ['clark.kent@example.com','superman@dc.com'],
+            'spec.example.telephone' => ['555-123-1234', '555-456-6789'],
+            'spec.example.address' => 
+              ['344 Clinton St., Apt. #3B, Metropolis', 'The Fortess of Solitude, North Pole'],
+            'spec.example.birthday' => ParseDate.parsedate('June 18, 1938'),
+            'spec.example.note' => 
+              'Superhuman strength, speed, stamina, durability, senses, intelligence, regeneration, and longevity; super breath, heat vision, x-ray vision and flight. Member of the justice league.',
+          },
+          {
+            'spec.example.name' => 'Bruce Wayne',
+            'spec.example.email' => ['bruce.wayne@example.com','batman@dc.com'],
+            'spec.example.telephone' => ['555-123-6666', '555-456-6666'],
+            'spec.example.address' => 
+              ['1007 Mountain Drive, Gotham', 'The Batcave, Gotham'],
+            'spec.example.birthday' => ParseDate.parsedate('February 19, 1939'),
+            'spec.example.note' => 
+              'Sidekick is Robin. Has problems with the Joker. Member of the justice league.',
+          },
+        ]
+
+        response = @client.add_documents('spec_index', documents, 'spec.example')
+        response['STATUS'].should be_between(200, 299)
+        response['result'].should have(3).items
+      end
+
+      after(:each) do
+        @client.delete_schema("spec.example")
+        @client.delete_indexes('spec_index')
+      end
+    end
   end
 end
 
