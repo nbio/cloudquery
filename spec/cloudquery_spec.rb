@@ -82,7 +82,7 @@ if ENV["TEST_REAL_HTTP"]
       response['result'].should have(3).items
     end
 
-    describe "document management" do
+    describe "document support" do
       def valid_document
         {
             'spec.example.name' => 'Steve Rogers',
@@ -92,6 +92,11 @@ if ENV["TEST_REAL_HTTP"]
             'spec.example.birthday' => ParseDate.parsedate('July 4, 1917'),
             'spec.example.note' => 'Captain America!',
         }
+      end
+      
+      def add_valid_document
+        response = @client.add_documents('spec_index', valid_document, 'spec.example')
+        response['result'].first
       end
       
       before(:each) do
@@ -106,7 +111,7 @@ if ENV["TEST_REAL_HTTP"]
 
       it "adds a document to an index on the server" do
         response = @client.add_documents('spec_index', valid_document, 'spec.example')
-        response['STATUS'].should be_between(200, 299)
+        response['STATUS'].should == 201
         response['result'].should have(1).item
       end
 
@@ -136,27 +141,55 @@ if ENV["TEST_REAL_HTTP"]
         ]
 
         response = @client.add_documents('spec_index', documents, 'spec.example')
-        response['STATUS'].should be_between(200, 299)
+        response['STATUS'].should == 201
         response['result'].should have(3).items
       end
 
       it "updates a document on the server" do
-        doc_id = 'spec_example_document'
         doc = valid_document
-
-        added_doc = @client.add_documents('spec_index', doc, 'spec.example')
-        added_doc['STATUS'].should == 201 # created
-        added_doc['result'].should have(1).item
-        x_doc_id = added_doc['result'].first
-
-        doc['#.#'] = x_doc_id
+        doc['#.#'] = add_valid_document
         doc['spec.example.note'] = "Document modified!"
 
         response = @client.update_documents('spec_index', doc, 'spec.example')
+        response['STATUS'].should == 200
+        response['result'].should have(1).item
+      end
+
+      it "modifies documents on the server" do
+        add_valid_document
+        mods = {'spec.example.note' => 'Document modified!'}
+        response = @client.modify_documents(
+          "spec_index",
+          "name:#{valid_document['spec.example.name']}",
+          mods,
+          "spec.example"
+        )
         response['STATUS'].should == 200 # OK
         response['result'].should have(1).item
       end
 
+      it "gets a document from the server" do
+        add_valid_document
+        response = @client.get_documents('spec_index', nil, {}, 'spec.example')
+        response['STATUS'].should == 200
+        response['result'].should have(1).item
+        stored_document = response['result'].first
+        puts
+        pp valid_document
+        pp stored_document
+        valid_document.each do |key, value|
+          stored_document.should have_key(key)
+          stored_document[key].should == value
+        end
+      end
+      
+      it "counts documents from the server" do
+        add_valid_document
+        response = @client.count_documents('spec_index', nil, 'spec.example')
+        response['STATUS'].should == 200
+        response['result'].should == 1
+        response['matches'].should == 1
+      end
     end
   end
 end

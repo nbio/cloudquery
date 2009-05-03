@@ -207,13 +207,58 @@ module Cloudquery
       send_request request
     end
     
-    def modify_documents(index, query, data, *schemas)
+    def modify_documents(index, query, modifications, *schemas)
+      request = put(
+        build_path(API_PATHS[:documents], index, url_pipe_join(schemas), Rack::Utils.escape(query)),
+        JSON.generate(modifications)
+      )
+      send_request request
+    end
+    
+    def delete_documents(index, query, *schemas)
+      request = delete(
+        build_path(API_PATHS[:documents], index, url_pipe_join(schemas), Rack::Utils.escape(query))
+      )
+      send_request request
+    end
+    
+    def get_documents(index, query, options={}, *schemas)
+      if fields = options.delete(:fields)
+        fields = url_pipe_join(fields)
+      end
       
+      if options[:sort]
+        options[:sort] = Array(options[:sort]).flatten.join(',')
+      end
+      
+      request = get(
+        build_path(API_PATHS[:documents], 
+          index, 
+          url_pipe_join(schemas),
+          url_pipe_join(query),
+          fields
+        ),
+        options
+      )
+      send_request request
+    end
+    
+    def count_documents(index, query, *schemas)
+      query = url_pipe_join(query)
+      request = get(
+        build_path(API_PATHS[:documents], 
+          index, 
+          url_pipe_join(schemas),
+          url_pipe_join(query),
+          '@count'
+        )
+      )
+      send_request request
     end
     
     private
     def build_path(*path_elements)
-      path_elements.flatten.unshift(PATH).join('/')
+      path_elements.flatten.compact.unshift(PATH).join('/')
     end
     
     def build_request(options={})
