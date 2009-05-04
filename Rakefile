@@ -11,7 +11,11 @@ begin
     gem.authors = ["Cameron Walters", "nb.io"]
     gem.files =  FileList["[A-Z]*", "{lib,spec}/**/*"] 
     # gem.rubyforge_project = "cloudquery"
-  
+    gem.add_dependency('rack', ">= 1.0")
+    gem.add_dependency('json', ">= 1.1.4")
+    gem.add_dependency('taf2-curb', ">= 0.2.8.0")
+    
+    
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
 rescue LoadError

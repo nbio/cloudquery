@@ -6,11 +6,18 @@ Client for Xoopit's cloudquery API
 Install
 -------
 
-    sudo gem install xoopit-cloudquery-ruby
+Depends on `json`, `rack`, and `taf2-curb`. The install below should take
+care of it. If not, `sudo gem install json rack taf2-curb` will do it.
+
+Be sure you've run `gem sources -a http://gems.github.com` once on your system. Then:
+
+    sudo gem install xoopit-cloudquery
 
 Simple contacts application example
 -----------------------------------
 
+    > require 'rubygems'
+    => true
     > require 'cloudquery'
     => true
     > include Cloudquery
