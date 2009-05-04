@@ -18,7 +18,7 @@ module Cloudquery
     :documents => "i".freeze,
   }.freeze
   
-  # standard Content-Types for requests
+  # Standard Content-Types for requests
   CONTENT_TYPES = {
     :json => 'application/json;charset=utf-8'.freeze,
     :form => 'application/x-www-form-urlencoded'.freeze,
@@ -126,6 +126,18 @@ module Cloudquery
     attr_reader :account
     attr_writer :secret
 
+    # Create a new instance of the client
+    # +options = {}+ Acceptable options:
+    # +:account+ => <account name> (default => nil)
+    # +:secret+ => <API secret> (default => nil)
+    #
+    # +:document_id_method+ => <method name> (default => nil)
+    # will call +:document_id_method+ during +add_documents+
+    # and +update_documents+ which should inject an +'#.id'+
+    # key-value pair as a simple way to tie app PKs to doc ids.
+    #
+    # +:secure+ => Boolean (default => true, uses HTTPS)
+    # +:secure => false+ will use HTTP
     def initialize(options={})
       # unless options[:account] && options[:secret]
       #   raise "Client requires :account => <account name> and :secret => <secret>"
@@ -136,11 +148,13 @@ module Cloudquery
       
       @secure = options[:secure] != false # must pass false for insecure
       
-      @document_id_method = nil
+      @document_id_method = options[:document_id_method]
     end
 
-    # Account management
+
+    ## Account management
     
+    # Retrieve the API secret for an account, using the password (uses HTTPS)
     def self.get_secret(account, password)
       auth = Request.new(:path => "#{PATH}/auth")
       curl = Curl::Easy.new(auth.url) do |c|
@@ -160,31 +174,36 @@ module Cloudquery
       end
     end
 
+    # Get the account document
     def get_account
       send_request get(account_path)
     end
     
+    # Update the account document.
+    # For example, you can use this method to change the API secret:
+    # update_account({'secret' => 'your-new-secret'})
     def update_account(account_doc={})
       body = JSON.generate(account_doc)
       send_request put(account_path, body)
     end
     
+    # Delete the account. BEWARE: THIS WILL ACTUALLY DELETE YOUR ACCOUNT.
     def delete_account
       send_request delete(account_path)
     end
+
+
+    ## Schema management
     
-    def account_path
-      build_path(API_PATHS[:account], @account)
-    end
-    
-    # Schema management
-    
+    # Add a schema to the account. xml can be a String
+    # or File-like (responds to read)
     def add_schema(xml)
-      body = xml.instance_of?(File) ? xml.read : xml
+      body = xml.respond_to?(:read) ? xml.read : xml
       request = post(build_path(API_PATHS[:schema]), body)
       send_request(request, CONTENT_TYPES[:xml])
     end
     
+    # Delete a schema from the account, by name
     def delete_schema(schema_name)
       send_request delete(build_path(
         API_PATHS[:schema],
@@ -192,28 +211,43 @@ module Cloudquery
       ))
     end
     
+    # Get the schemas for the account.
+    # NOTE: returned format is not the same as accepted for input
     def get_schemas
       send_request get(build_path(API_PATHS[:schema]))
     end
     
-    # Index management
+
+    ## Index management
     
+    # Add one or more indexes to the account, by name or id
     def add_indexes(*indexes)
       body = JSON.generate(indexes.flatten)
       send_request post(build_path(API_PATHS[:indexes]), body)
     end
     
+    # Delete one or more indexes from the account, by name or id
+    # +indexes = '*'+ will delete all indexes
     def delete_indexes(*indexes)
       indexes = url_pipe_join(indexes)
       send_request delete(build_path(API_PATHS[:indexes], indexes))
     end
     
+    # Get the indexes from the account. Returns a list of ids
     def get_indexes
       send_request get(build_path(API_PATHS[:indexes]))
     end
     
-    # Document management
+
+    ## Document management
     
+    # Add documents to the specified +index+
+    # +index = name or id+, +docs = {}+ or Array of {}.
+    #
+    # Documents with key +'#.id'+ and an existing value will be updated.
+    #
+    # If +schemas+ is not nil, ensures existence of the
+    # specified schemas on each document.
     def add_documents(index, docs, *schemas)
       request = post(
         build_path(API_PATHS[:documents], index, url_pipe_join(schemas)),
@@ -222,6 +256,13 @@ module Cloudquery
       send_request request
     end
     
+    # Update documents in the specified +index+
+    # +index = name or id+, +docs = {}+ or Array of {}.
+    #
+    # Documents lacking the key +'#.id'+ will be created.
+    #
+    # If +schemas+ is not nil, ensures existence of the
+    # specified schemas on each document.
     def update_documents(index, docs, *schemas)
       request = put(
         build_path(API_PATHS[:documents], index, url_pipe_join(schemas)),
@@ -230,6 +271,12 @@ module Cloudquery
       send_request request
     end
     
+    # Modify documents in the +index+ matching +query+
+    # +modifications = {}+ to update all matching
+    # documents.
+    #
+    # If +schemas+ is not nil, ensures existence of the
+    # specified schemas on each document.
     def modify_documents(index, query, modifications, *schemas)
       request = put(
         build_path(API_PATHS[:documents], index, url_pipe_join(schemas), Rack::Utils.escape(query)),
@@ -238,13 +285,41 @@ module Cloudquery
       send_request request
     end
     
+    # Delete documents in the +index+ matching +query+
+    #
+    # +query+ defaults to +'*'+
+    # BEWARE: If +query = nil+ this will delete ALL documents in +index+.
+    #
+    # +index+ may be an id, index name, or Array of ids or names.
+    # Operates on all indexes if +index = nil+ or +'*'+
+    #
+    # If +schemas+ is not nil, ensures existence of the
+    # specified schemas on each document.
     def delete_documents(index, query, *schemas)
       request = delete(
-        build_path(API_PATHS[:documents], index, url_pipe_join(schemas), Rack::Utils.escape(query))
+        build_path(API_PATHS[:documents],
+          url_pipe_join(index),
+          url_pipe_join(schemas),
+          Rack::Utils.escape(query)
+        )
       )
       send_request request
     end
     
+    # Get documents matching +query+
+    # 
+    # +query+ defaults to +'*'+
+    # +index+ may be an id, index name, or Array of ids or names.
+    # Operates on all indexes if +index = nil+ or +'*'+
+    #
+    # +options = {}+ Acceptable options:
+    # +:fields+ => a field name, a prefix match (e.g. +'trans*'+), or a list thereof (default => +'*'+)
+    # +:sort+ => a string ("[+|-]schema.field"), or a list thereof (default  => +'+#.number'+)
+    # +:offset+ => integer offset into the result set (default => +0+)
+    # +:limit+ => integer limit on number of documents returned per index (default => <no limit>)
+    #
+    # If +schemas+ is not nil, ensures existence of the
+    # specified schemas on each document.
     def get_documents(index, query, options={}, *schemas)
       if fields = options.delete(:fields)
         fields = url_pipe_join(fields)
@@ -256,7 +331,7 @@ module Cloudquery
       
       request = get(
         build_path(API_PATHS[:documents], 
-          index, 
+          url_pipe_join(index), 
           url_pipe_join(schemas),
           url_pipe_join(query),
           fields
@@ -266,22 +341,25 @@ module Cloudquery
       send_request request
     end
     
+    # Count documents matching +query+
+    # 
+    # +query+ defaults to +'*'+
+    # +index+ may be an id, index name, or Array of ids or names.
+    # Operates on all indexes if +index = nil+ or +'*'+
+    #
+    # If +schemas+ is not nil, ensures existence of the
+    # specified schemas on each document.
     def count_documents(index, query, *schemas)
-      query = url_pipe_join(query)
-      request = get(
-        build_path(API_PATHS[:documents], 
-          index, 
-          url_pipe_join(schemas),
-          url_pipe_join(query),
-          '@count'
-        )
-      )
-      send_request request
+      get_documents(index, query, {:fields => '@count'}, *schemas)
     end
     
     private
     def build_path(*path_elements)
       path_elements.flatten.compact.unshift(PATH).join('/')
+    end
+    
+    def account_path
+      build_path(API_PATHS[:account], @account)
     end
     
     def build_request(options={})

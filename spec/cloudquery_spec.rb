@@ -94,8 +94,9 @@ if ENV["TEST_REAL_HTTP"]
         }
       end
       
-      def add_valid_document
-        response = @client.add_documents('spec_index', valid_document, 'spec.example')
+      def add_valid_document(index=nil)
+        index ||= 'spec_index'
+        response = @client.add_documents(index, valid_document, 'spec.example')
         response['result'].first
       end
       
@@ -177,12 +178,31 @@ if ENV["TEST_REAL_HTTP"]
         valid_document.each { |key, value| stored_document.should have_key(key) }
       end
       
-      it "counts documents from the server" do
+      it "gets a document from multiple indexes on the server" do
+        @client.add_indexes('spec_index_2')
+        @client.delete_documents(nil, nil)
         add_valid_document
-        response = @client.count_documents('spec_index', nil, 'spec.example')
+        add_valid_document('spec_index_2')
+
+        response = @client.get_documents(nil, nil, {}, 'spec.example')
+        response['STATUS'].should == 200
+        response['result'].should have(2).items
+        stored_document_1 = response['result'].first
+        stored_document_2 = response['result'].last
+
+        valid_document.each { |key, value| stored_document_1.should have_key(key) }
+        valid_document.each { |key, value| stored_document_2.should have_key(key) }
+        
+        @client.delete_indexes('spec_index_2')
+      end
+      
+      it "counts documents from the server" do
+        @client.delete_documents(nil, nil)
+        add_valid_document
+        
+        response = @client.count_documents('spec_index', '*', 'spec.example')
         response['STATUS'].should == 200
         response['result'].should == 1
-        response['matches'].should == 1
       end
     end
   end
