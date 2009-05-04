@@ -7,7 +7,6 @@ Install
 -------
 
     sudo gem install xoopit-cloudquery-ruby
-    
 
 Simple contacts application example
 -----------------------------------
