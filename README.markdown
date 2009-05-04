@@ -6,7 +6,7 @@ Client for Xoopit's cloudquery API
 Install
 -------
 
-    sudo gem install xoopit-cloudquery
+    sudo gem install xoopit-cloudquery-ruby
     
 
 Simple contacts application example
