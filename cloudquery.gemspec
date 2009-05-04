@@ -11,11 +11,11 @@ Gem::Specification.new do |s|
   s.email = %q{us@nb.io}
   s.extra_rdoc_files = [
     "LICENSE",
-    "README.rdoc"
+    "README.markdown"
   ]
   s.files = [
     "LICENSE",
-    "README.rdoc",
+    "README.markdown",
     "Rakefile",
     "VERSION.yml",
     "lib/cloudquery.rb",
@@ -39,8 +39,17 @@ Gem::Specification.new do |s|
     s.specification_version = 2
 
     if Gem::Version.new(Gem::RubyGemsVersion) >= Gem::Version.new('1.2.0') then
+      s.add_runtime_dependency(%q<rack>, [">= 1.0"])
+      s.add_runtime_dependency(%q<json>, [">= 1.1.4"])
+      s.add_runtime_dependency(%q<taf2-curb>, [">= 0.2.8.0"])
     else
+      s.add_dependency(%q<rack>, [">= 1.0"])
+      s.add_dependency(%q<json>, [">= 1.1.4"])
+      s.add_dependency(%q<taf2-curb>, [">= 0.2.8.0"])
     end
   else
+    s.add_dependency(%q<rack>, [">= 1.0"])
+    s.add_dependency(%q<json>, [">= 1.1.4"])
+    s.add_dependency(%q<taf2-curb>, [">= 0.2.8.0"])
   end
 end
