@@ -140,18 +140,41 @@ module Cloudquery
     end
 
     # Account management
+    
+    def self.get_secret(account, password)
+      auth = Request.new(:path => "#{PATH}/auth")
+      curl = Curl::Easy.new(auth.url) do |c|
+        c.enable_cookies = true
+        c.cookiejar = COOKIE_JAR
+      end
+      params = Rack::Utils.build_query({"name" => account, "password" => password})
+      curl.http_post(params)
+      
+      if curl.response_code == 200
+        curl.url = Request.new(:path => "#{PATH}/#{API_PATHS[:account]}/#{account}").url
+        curl.http_get
+        response = JSON.parse(curl.body_str)
+        response['result']['secret']
+      else
+        STDERR.puts "Error: #{curl.response_code} #{Rack::Utils::HTTP_STATUS_CODES[curl.response_code]}"
+      end
+    end
 
     def get_account
-      send_request get(build_path(API_PATHS[:account], @account))
+      send_request get(account_path)
     end
     
     def update_account(account_doc={})
       body = JSON.generate(account_doc)
-      send_request put(build_path(API_PATHS[:account], @account), body)
+      send_request put(account_path, body)
     end
     
     def delete_account
-      send_request delete(build_path(API_PATHS[:account], @account))
+      send_request delete(account_path)
+    end
+    
+    def account_path
+      build_path(API_PATHS[:account], @account)
     end
     
     # Schema management
@@ -291,20 +314,25 @@ module Cloudquery
     
     def send_request(request, content_type=nil)
       response = execute_request(request.method, request.url, request.headers, request.body, content_type)
-      begin
-        result = JSON.parse(response.last)
-      rescue JSON::ParserError => e
-        result = {"REASON" => response.last}
+      status_code = response.first
+      if (200..299).include?(status_code)
+        begin
+          result = JSON.parse(response.last)
+        rescue JSON::ParserError => e
+          result = {"REASON" => e.message}
+        end
+      else
+        result = {"REASON" => "Error: #{status_code} #{Rack::Utils::HTTP_STATUS_CODES[status_code]}"}
       end
-      result.merge!({'STATUS' => response.first})
+      result.merge!({'STATUS' => status_code})
     end
 
     def execute_request(method, url, headers, body, content_type=nil)
       content_type ||= CONTENT_TYPES[:json]
       curl = Curl::Easy.new(url) do |c|
-        # c.verbose = true
         c.headers = headers
         c.headers['Content-Type'] = content_type
+        c.encoding = 'gzip'
       end
       case method
       when 'GET'
