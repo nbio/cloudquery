@@ -127,17 +127,21 @@ module Cloudquery
     attr_writer :secret
 
     # Create a new instance of the client
-    # +options = {}+ Acceptable options:
-    # +:account+ => <account name> (default => nil)
-    # +:secret+ => <API secret> (default => nil)
     #
-    # +:document_id_method+ => <method name> (default => nil)
-    # will call +:document_id_method+ during +add_documents+
-    # and +update_documents+ which should inject an +'#.id'+
-    # key-value pair as a simple way to tie app PKs to doc ids.
+    # It's highly recommended to set options <tt>:account</tt>
+    # and <tt>:secret</tt>. Creating a client without an account
+    # and secret isn't very useful. 
     #
-    # +:secure+ => Boolean (default => true, uses HTTPS)
-    # +:secure => false+ will use HTTP
+    # ==== Acceptable options:
+    #   :account => <account name> (default => nil)
+    #   :secret => <API secret> (default => nil)
+    #   :document_id_method => <method name> (default => nil)
+    #   :secure => Boolean (use HTTPS, default => true)
+    #
+    # If +document_id_method+ is set, it will be called on each
+    # document as a part of +add_documents+ and +update_documents+
+    # which should inject an <tt>'#.id'</tt> key-value pair as a
+    # simple way to tie app PKs to doc ids.
     def initialize(options={})
       # unless options[:account] && options[:secret]
       #   raise "Client requires :account => <account name> and :secret => <secret>"
@@ -154,7 +158,7 @@ module Cloudquery
 
     ## Account management
     
-    # Retrieve the API secret for an account, using the password (uses HTTPS)
+    # Retrieve the API secret for an +account+, using the +password+ (uses HTTPS)
     def self.get_secret(account, password)
       auth = Request.new(:path => "#{PATH}/auth")
       curl = Curl::Easy.new(auth.url) do |c|
@@ -180,23 +184,26 @@ module Cloudquery
     end
     
     # Update the account document.
-    # For example, you can use this method to change the API secret:
-    # update_account({'secret' => 'your-new-secret'})
+    #
+    # Use this method to change the API secret:
+    #   update_account({'secret' => 'your-new-secret'})
     def update_account(account_doc={})
       body = JSON.generate(account_doc)
       send_request put(account_path, body)
     end
     
-    # Delete the account. BEWARE: THIS WILL ACTUALLY DELETE YOUR ACCOUNT.
-    def delete_account
+    # Delete the account.
+    #
+    # ==== BEWARE: THIS WILL ACTUALLY DELETE YOUR ACCOUNT.
+    def delete_account!
       send_request delete(account_path)
     end
 
 
     ## Schema management
     
-    # Add a schema to the account. xml can be a String
-    # or File-like (responds to read)
+    # Add a schema to the account. +xml+ can be a +String+
+    # or +File+-like (responds to <tt>:read</tt>)
     def add_schema(xml)
       body = xml.respond_to?(:read) ? xml.read : xml
       request = post(build_path(API_PATHS[:schema]), body)
@@ -212,6 +219,7 @@ module Cloudquery
     end
     
     # Get the schemas for the account.
+    #
     # NOTE: returned format is not the same as accepted for input
     def get_schemas
       send_request get(build_path(API_PATHS[:schema]))
@@ -227,7 +235,7 @@ module Cloudquery
     end
     
     # Delete one or more indexes from the account, by name or id
-    # +indexes = '*'+ will delete all indexes
+    # <tt>indexes = '*'</tt> will delete all indexes
     def delete_indexes(*indexes)
       indexes = url_pipe_join(indexes)
       send_request delete(build_path(API_PATHS[:indexes], indexes))
@@ -242,11 +250,12 @@ module Cloudquery
     ## Document management
     
     # Add documents to the specified +index+
-    # +index = name or id+, +docs = {}+ or Array of {}.
     #
-    # Documents with key +'#.id'+ and an existing value will be updated.
+    # <tt>index = name</tt> or +id+, <tt>docs = {}</tt> or +Array+ of <tt>{}</tt>.
     #
-    # If +schemas+ is not nil, ensures existence of the
+    # Documents with key <tt>'#.id'</tt> and an existing value will be updated.
+    #
+    # If +schemas+ is not +nil+, ensures existence of the
     # specified schemas on each document.
     def add_documents(index, docs, *schemas)
       request = post(
@@ -257,11 +266,12 @@ module Cloudquery
     end
     
     # Update documents in the specified +index+
-    # +index = name or id+, +docs = {}+ or Array of {}.
+    
+    # <tt>index = name</tt> or +id+, <tt>docs = {}</tt> or +Array+ of <tt>{}</tt>.
     #
-    # Documents lacking the key +'#.id'+ will be created.
+    # Documents lacking the key <tt>'#.id'</tt> will be created.
     #
-    # If +schemas+ is not nil, ensures existence of the
+    # If +schemas+ is not +nil+, ensures existence of the
     # specified schemas on each document.
     def update_documents(index, docs, *schemas)
       request = put(
@@ -272,10 +282,11 @@ module Cloudquery
     end
     
     # Modify documents in the +index+ matching +query+
-    # +modifications = {}+ to update all matching
+    #
+    # <tt>modifications = {...data...}</tt> to update all matching
     # documents.
     #
-    # If +schemas+ is not nil, ensures existence of the
+    # If +schemas+ is not +nil+, ensures existence of the
     # specified schemas on each document.
     def modify_documents(index, query, modifications, *schemas)
       request = put(
@@ -287,13 +298,14 @@ module Cloudquery
     
     # Delete documents in the +index+ matching +query+
     #
-    # +query+ defaults to +'*'+
-    # BEWARE: If +query = nil+ this will delete ALL documents in +index+.
+    #   query => defaults to '*'
+    #   index => may be an id, index name, or Array of ids or names.
     #
-    # +index+ may be an id, index name, or Array of ids or names.
-    # Operates on all indexes if +index = nil+ or +'*'+
+    # Operates on all indexes if +index+ = +nil+ or <tt>'*'</tt>
     #
-    # If +schemas+ is not nil, ensures existence of the
+    # ==== BEWARE: If +query+ = +nil+ this will delete ALL documents in +index+.
+    #
+    # If +schemas+ is not +nil+, ensures existence of the
     # specified schemas on each document.
     def delete_documents(index, query, *schemas)
       request = delete(
@@ -308,17 +320,18 @@ module Cloudquery
     
     # Get documents matching +query+
     # 
-    # +query+ defaults to +'*'+
-    # +index+ may be an id, index name, or Array of ids or names.
-    # Operates on all indexes if +index = nil+ or +'*'+
+    #   query => defaults to '*'
+    #   index => may be an id, index name, or Array of ids or names.
     #
-    # +options = {}+ Acceptable options:
-    # +:fields+ => a field name, a prefix match (e.g. +'trans*'+), or a list thereof (default => +'*'+)
-    # +:sort+ => a string ("[+|-]schema.field"), or a list thereof (default  => +'+#.number'+)
-    # +:offset+ => integer offset into the result set (default => +0+)
-    # +:limit+ => integer limit on number of documents returned per index (default => <no limit>)
+    # Operates on all indexes if +index+ = +nil+ or <tt>'*'</tt>
     #
-    # If +schemas+ is not nil, ensures existence of the
+    # ==== Acceptable options:
+    #   :fields => a field name, a prefix match (e.g. 'trans*'), or Array of fields (default => '*')
+    #   :sort => a string ("[+|-]schema.field"), or a list thereof (default  => '+#.number')
+    #   :offset => integer offset into the result set (default => 0)
+    #   :limit => integer limit on number of documents returned per index (default => <no limit>)
+    #
+    # If +schemas+ is not +nil+, ensures existence of the
     # specified schemas on each document.
     def get_documents(index, query, options={}, *schemas)
       if fields = options.delete(:fields)
@@ -343,11 +356,12 @@ module Cloudquery
     
     # Count documents matching +query+
     # 
-    # +query+ defaults to +'*'+
-    # +index+ may be an id, index name, or Array of ids or names.
-    # Operates on all indexes if +index = nil+ or +'*'+
+    #   query => defaults to '*'
+    #   index => may be an id, index name, or Array of ids or names.
     #
-    # If +schemas+ is not nil, ensures existence of the
+    # Operates on all indexes if +index+ = +nil+ or <tt>'*'</tt>
+    #
+    # If +schemas+ is not +nil+, ensures existence of the
     # specified schemas on each document.
     def count_documents(index, query, *schemas)
       get_documents(index, query, {:fields => '@count'}, *schemas)
