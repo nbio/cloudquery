@@ -1,7 +1,0 @@
-= cloudquery
-
-Client for Xoopit's cloudquery API
-
-== Copyright
-
-Copyright (c) 2009 nb.io. See LICENSE for details.
